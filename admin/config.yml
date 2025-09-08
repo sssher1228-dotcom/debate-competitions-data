@@ -1,0 +1,49 @@
+backend:
+  name: git-gateway
+  branch: main   # 你的仓库默认分支
+
+media_folder: "static/uploads"
+public_folder: "/uploads"
+
+publish_mode: simple   # 如需“草稿-审核-发布”，可改为 editorial_workflow
+
+collections:
+  - name: "competitions"
+    label: "比赛信息"
+    files:
+      - name: "data"
+        label: "数据文件（含 updated_at 与 contests）"
+        file: "data.json"   # 因为 data.json 在仓库根目录
+        format: "json"
+        fields:
+          - label: "数据更新时间 updated_at"
+            name: "updated_at"
+            widget: "string"
+            hint: "ISO 时间，如 2025-08-29T00:00:00Z，可保留原值或手动更新"
+
+          - label: "比赛列表"
+            name: "contests"
+            widget: "list"
+            summary: "{{fields.short_name}} – {{fields.time}} – {{fields.location}}"
+            fields:
+              - { label: "比赛简称", name: "short_name", widget: "string" }
+              - { label: "比赛全称", name: "full_name", widget: "string" }
+              - { label: "赛制/形式", name: "format", widget: "string", default: "英国议会制辩论（BP）" }
+              - { label: "参赛对象", name: "audience", widget: "string", required: false }
+              - { label: "比赛时间", name: "time", widget: "string" }
+              - { label: "参赛要求", name: "requirement", widget: "text", required: false }
+              - { label: "地理位置", name: "location", widget: "string", required: false }
+              - { label: "主办方", name: "organizer", widget: "string", required: false }
+              - label: "官网链接"
+                name: "url"
+                widget: "string"
+                required: false
+                hint: "粘贴完整 URL（如 https://...），留空则前端可隐藏按钮"
+                pattern:
+                  - "^(https?://.*)?$"
+                  - "必须是 http(s) 链接或留空"
+              - label: "标签"
+                name: "tags"
+                widget: "list"
+                allow_add: true
+                default: ["BP"]
