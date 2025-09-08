@@ -1,1 +1,30 @@
+{
+  "updated_at": "2025-08-29T00:00:00Z",
+  "contests": [
+    {
+      "short_name": "CABP",
+      "full_name": "Cambridge Asia British Parliamentary Championships",
+      "format": "英国议会制辩论（BP）",
+      "audience": "亚洲地区顶尖中学生和高中生",
+      "time": "系列赛事，如CABP Asia 12月28-29日",
+      "requirement": "必须是亚洲国家的中学生或高中生",
+      "location": "亚洲地区线上，决赛可能在剑桥",
+      "organizer": "剑桥大学辩论社合作 &LearningLeaders",
+      "url": "",
+      "tags": ["BP", "线上", "亚洲", "剑桥"]
+    },
+    {
+      "short_name": "ASO Summer",
+      "full_name": "Asia Schools Open - BP Debate (Summer Edition)",
+      "format": "英国议会制辩论（BP）",
+      "audience": "亚太地区中学生和高中生",
+      "time": "如2025年夏季版8月30-31日",
+      "requirement": "13-18 years, Asia Pacific region",
+      "location": "线上",
+      "organizer": "EduDrift",
+      "url": "",
+      "tags": ["BP", "线上", "亚太", "夏季"]
+    }
+  ]
+}
 
