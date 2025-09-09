@@ -37,4 +37,355 @@
     .form-group{margin-bottom:20px}
     .form-label{display:block;margin-bottom:8px;font-weight:600;color:#495057}
     .form-control{width:100%;padding:12px 15px;border:2px solid #e9ecef;border-radius:8px;font-size:14px;transition:.3s}
-    .form-control:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba
+    .form-control:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+    textarea.form-control{resize:vertical;min-height:80px}
+    .tags-input{display:flex;flex-wrap:wrap;gap:8px;padding:8px;border:2px solid #e9ecef;border-radius:8px;min-height:45px;cursor:text}
+    .tags-input:focus-within{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+    .tag-item{background:#e3f2fd;color:#1976d2;padding:4px 8px;border-radius:15px;font-size:12px;display:flex;align-items:center;gap:5px}
+    .tag-remove{cursor:pointer;font-weight:700}
+    .tag-input{border:none;outline:none;flex:1;min-width:100px;padding:4px}
+    .modal-footer{padding:20px 30px;border-top:1px solid #e9ecef;display:flex;justify-content:flex-end;gap:15px}
+    .loading{display:none;text-align:center;padding:40px;color:#6c757d}
+    .spinner{border:3px solid #f3f3f3;border-top:3px solid #667eea;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 15px}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .alert{padding:15px 20px;margin-bottom:20px;border-radius:8px;font-weight:500}
+    .alert-success{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+    .alert-error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
+    @media (max-width:768px){.container{padding:10px}.competitions-grid{grid-template-columns:1fr}.modal-content{width:95%;margin:5% auto}.toolbar{flex-direction:column;align-items:stretch}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>英辩比赛管理后台</h1>
+      <p class="subtitle">管理中学生英辩比赛信息</p>
+    </header>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openAddModal()">➕ 添加新比赛</button>
+      <div>
+        <a href="/" class="btn btn-secondary">🌐 查看网站</a>
+        <button class="btn btn-success" onclick="loadCompetitions()">🔄 刷新数据</button>
+      </div>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <div class="competitions-grid" id="competitions-grid"></div>
+  </div>
+
+  <!-- 添加/编辑比赛模态框 -->
+  <div id="competitionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">添加新比赛</h2>
+        <span class="close" onclick="closeModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="competition-form">
+          <div class="form-group">
+            <label class="form-label" for="title">比赛简称 *</label>
+            <input type="text" class="form-control" id="title" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="fullName">比赛全称 *</label>
+            <input type="text" class="form-control" id="fullName" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="format">赛制 *</label>
+            <input type="text" class="form-control" id="format" required value="英国议会制辩论（BP）">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="participants">参赛对象 *</label>
+            <textarea class="form-control" id="participants" required></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="time">比赛时间 *</label>
+            <textarea class="form-control" id="time" required></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="requirements">参赛要求 *</label>
+            <textarea class="form-control" id="requirements" required></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="location">地理位置 *</label>
+            <textarea class="form-control" id="location" required></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="organizer">主办方 *</label>
+            <input type="text" class="form-control" id="organizer" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="website">网址 *</label>
+            <input type="url" class="form-control" id="website" required placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">标签</label>
+            <div class="tags-input" id="tags-input" onclick="focusTagInput()">
+              <input type="text" class="tag-input" id="tag-input" placeholder="输入标签后按回车添加">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveCompetition()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ====== 需替换的两个变量 ====== */
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1210v7iHdMSMLCApPlbhQ9yueYZWNkG1k2LXZdcRTtV4/export?format=csv&gid=0";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC63vqBr2_Hoz8ObdbuEkWCfrtCPVUGMUONivF7qXP6bWgnL_S9ukdECNafJlVO9G2/exec";
+    const SHARED_SECRET = "";
+
+    /* ====== 内部状态 ====== */
+    let competitions = [];
+    let currentTags = [];
+    let currentEditingKey = null; // 用 short_name 作为唯一键
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCompetitions();
+      const tagInput = document.getElementById('tag-input');
+      tagInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const v = tagInput.value.trim();
+          if (v && !currentTags.includes(v)) {
+            currentTags.push(v);
+            tagInput.value = '';
+            renderTags();
+          }
+        }
+      });
+    });
+
+    /* ====== 读取：从 Sheet CSV 拉取并映射到你的字段命名 ====== */
+    function parseCSV(text){
+      const rows=[], cur=[], push=()=>{rows.push(cur.slice());cur.length=0};
+      let v="", q=false;
+      for(let i=0;i<text.length;i++){
+        const c=text[i], n=text[i+1];
+        if(q){
+          if(c==='"' && n==='"'){ v+='"'; i++; }
+          else if(c==='"'){ q=false; }
+          else { v+=c; }
+        }else{
+          if(c==='"'){ q=true; }
+          else if(c===','){ cur.push(v); v=""; }
+          else if(c==='\n'){ cur.push(v); v=""; push(); }
+          else { v+=c; }
+        }
+      }
+      if(v!=="" || cur.length){ cur.push(v); push(); }
+      return rows;
+    }
+    function rowToObj(headers,row){
+      const cell = h => row[headers.indexOf(h)] || '';
+      const tagsRaw = String(cell('tags')||'').replace(/，/g,',').replace(/\|/g,',');
+      const tagsArr = tagsRaw.split(',').map(s=>s.trim()).filter(Boolean);
+      return {
+        id: cell('short_name'),
+        title: cell('short_name'),
+        fullName: cell('full_name'),
+        format: cell('format'),
+        participants: cell('audience'),
+        time: cell('time'),
+        requirements: cell('requirement'),
+        location: cell('location'),
+        organizer: cell('organizer'),
+        website: cell('url'),
+        tags: tagsArr
+      };
+    }
+
+    async function loadCompetitions(){
+      showLoading(true);
+      try{
+        const res = await fetch(SHEET_CSV_URL + '&_t=' + Date.now());
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const csv = await res.text();
+        const rows = parseCSV(csv);
+        if(!rows.length) { competitions = []; renderCompetitions(); return; }
+        const headers = rows.shift().map(h=>h.trim());
+        competitions = rows
+          .filter(r => r && r.join('').trim() !== '')
+          .map(r => rowToObj(headers, r));
+        renderCompetitions();
+      }catch(e){
+        showAlert('加载失败：' + e.message, 'error');
+      }finally{
+        showLoading(false);
+      }
+    }
+
+    /* ====== 写入：调用 Apps Script API（已改为“简单请求”避免 CORS 预检） ====== */
+    async function callAPI(action, recordOrKey){
+      const payload = (action === 'delete')
+        ? { action, key: recordOrKey, secret: SHARED_SECRET }
+        : { action, record: recordOrKey, key: recordOrKey.short_name, secret: SHARED_SECRET };
+
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ← 关键改动
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(()=> '');
+        throw new Error(`HTTP ${res.status}: ${txt || 'Request failed'}`);
+      }
+      return true;
+    }
+
+    /* ====== 渲染卡片 ====== */
+    function renderCompetitions(){
+      const grid = document.getElementById('competitions-grid');
+      if(!competitions.length){
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">暂无比赛数据</div>';
+        return;
+      }
+      grid.innerHTML = competitions.map(c => `
+        <div class="competition-card">
+          <h3 class="competition-title">${c.title}</h3>
+          <div class="competition-info">
+            <div class="info-row"><span class="info-label">全称:</span><span class="info-content">${c.fullName||''}</span></div>
+            <div class="info-row"><span class="info-label">赛制:</span><span class="info-content">${c.format||''}</span></div>
+            <div class="info-row"><span class="info-label">时间:</span><span class="info-content">${c.time||''}</span></div>
+            <div class="info-row"><span class="info-label">主办方:</span><span class="info-content">${c.organizer||''}</span></div>
+            <div class="info-row"><span class="info-label">网址:</span><span class="info-content">${c.website?`<a href="${c.website}" target="_blank" class="website-link">访问链接</a>`:''}</span></div>
+            <div class="info-row"><span class="info-label">标签:</span><span class="info-content">${(c.tags||[]).join(', ')}</span></div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary btn-small" onclick="editCompetition('${c.id}')">✏️ 编辑</button>
+            <button class="btn btn-danger btn-small" onclick="deleteCompetition('${c.id}')">🗑️ 删除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /* ====== UI 逻辑：新增/编辑/删除 ====== */
+    function openAddModal(){
+      currentEditingKey = null;
+      currentTags = [];
+      document.getElementById('modal-title').textContent = '添加新比赛';
+      document.getElementById('competition-form').reset();
+      renderTags();
+      document.getElementById('competitionModal').style.display = 'block';
+    }
+    function editCompetition(id){
+      const c = competitions.find(x => x.id === id);
+      if(!c) return;
+      currentEditingKey = id;
+      currentTags = [...(c.tags||[])];
+      document.getElementById('modal-title').textContent = '编辑比赛';
+      document.getElementById('title').value = c.title || '';
+      document.getElementById('fullName').value = c.fullName || '';
+      document.getElementById('format').value = c.format || '英国议会制辩论（BP）';
+      document.getElementById('participants').value = c.participants || '';
+      document.getElementById('time').value = c.time || '';
+      document.getElementById('requirements').value = c.requirements || '';
+      document.getElementById('location').value = c.location || '';
+      document.getElementById('organizer').value = c.organizer || '';
+      document.getElementById('website').value = c.website || '';
+      renderTags();
+      document.getElementById('competitionModal').style.display = 'block';
+    }
+    async function deleteCompetition(id){
+      if(!confirm('确定要删除这个比赛吗？')) return;
+      try{
+        await callAPI('delete', id);
+        showAlert('删除成功');
+        await loadCompetitions();
+      }catch(e){
+        showAlert('删除失败：' + e.message, 'error');
+      }
+    }
+
+    function closeModal(){
+      document.getElementById('competitionModal').style.display = 'none';
+    }
+
+    function showLoading(show){
+      document.getElementById('loading').style.display = show ? 'block':'none';
+      document.getElementById('competitions-grid').style.display = show ? 'none':'grid';
+    }
+    function showAlert(msg, type='success'){
+      const box = document.getElementById('alert-container');
+      const el = document.createElement('div');
+      el.className = 'alert ' + (type==='success' ? 'alert-success':'alert-error');
+      el.textContent = msg;
+      box.appendChild(el);
+      setTimeout(()=>{ box.removeChild(el); }, 4000);
+    }
+
+    /* ====== 标签输入 ====== */
+    function focusTagInput(){ document.getElementById('tag-input').focus(); }
+    function renderTags(){
+      const container = document.getElementById('tags-input');
+      const input = document.getElementById('tag-input');
+      container.querySelectorAll('.tag-item').forEach(t=>t.remove());
+      currentTags.forEach((t,i)=>{
+        const div = document.createElement('div');
+        div.className='tag-item';
+        div.innerHTML = `${t}<span class="tag-remove" onclick="removeTag(${i})">×</span>`;
+        container.insertBefore(div, input);
+      });
+    }
+    function removeTag(i){ currentTags.splice(i,1); renderTags(); }
+
+    /* ====== 保存（新增/更新） ====== */
+    async function saveCompetition(){
+      const form = document.getElementById('competition-form');
+      if(!form.checkValidity()){ form.reportValidity(); return; }
+
+      const recUI = {
+        title:        document.getElementById('title').value.trim(),
+        fullName:     document.getElementById('fullName').value.trim(),
+        format:       document.getElementById('format').value.trim(),
+        participants: document.getElementById('participants').value.trim(),
+        time:         document.getElementById('time').value.trim(),
+        requirements: document.getElementById('requirements').value.trim(),
+        location:     document.getElementById('location').value.trim(),
+        organizer:    document.getElementById('organizer').value.trim(),
+        website:      document.getElementById('website').value.trim(),
+        tags:         currentTags.slice()
+      };
+
+      const recSheet = {
+        short_name: recUI.title,
+        full_name:  recUI.fullName,
+        format:     recUI.format,
+        audience:   recUI.participants,
+        time:       recUI.time,
+        requirement:recUI.requirements,
+        location:   recUI.location,
+        organizer:  recUI.organizer,
+        url:        recUI.website,
+        tags:       (recUI.tags||[]).join('|')
+      };
+
+      const action = currentEditingKey ? 'update' : 'add';
+      try{
+        await callAPI(action, recSheet);
+        showAlert(currentEditingKey ? '更新成功' : '添加成功');
+        closeModal();
+        await loadCompetitions();
+      }catch(e){
+        showAlert('保存失败：' + e.message, 'error');
+      }
+    }
+
+    // 点击遮罩关闭
+    window.onclick = function(e){
+      const m = document.getElementById('competitionModal');
+      if(e.target===m) closeModal();
+    }
+  </script>
+</body>
+</html>
