@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BP比赛管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,Arial;padding:16px;max-width:900px;margin:auto}
+    input,textarea,button{padding:8px;margin:4px 0;width:100%}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    table{width:100%;border-collapse:collapse;margin-top:16px}
+    th,td{border:1px solid #ddd;padding:8px;font-size:14px}
+    th{background:#f5f5f5}
+    .actions button{margin-right:6px;width:auto}
+  </style>
+</head>
+<body>
+  <h1>BP 比赛管理（Sheet 数据源）</h1>
+
+  <div>
+    <label>搜索</label>
+    <input id="q" placeholder="按简称/全称/地点/标签 搜索" />
+  </div>
+
+  <h2>新增/更新</h2>
+  <div class="row">
+    <div><label>比赛简称 (唯一键)</label><input id="short_name"></div>
+    <div><label>比赛全称</label><input id="full_name"></div>
+  </div>
+  <div class="row">
+    <div><label>赛制/形式</label><input id="format" value="英国议会制辩论（BP）"></div>
+    <div><label>参赛对象</label><input id="audience"></div>
+  </div>
+  <div class="row">
+    <div><label>比赛时间</label><input id="time"></div>
+    <div><label>参赛要求</label><input id="requirement"></div>
+  </div>
+  <div class="row">
+    <div><label>地理位置</label><input id="location"></div>
+    <div><label>主办方</label><input id="organizer"></div>
+  </div>
+  <div class="row">
+    <div><label>官网链接</label><input id="url" placeholder="https://..."></div>
+    <div><label>标签（用 | 或 , 分隔）</label><input id="tags"></div>
+  </div>
+  <div class="row-3">
+    <button id="addBtn">新增（不存在则加）</button>
+    <button id="updateBtn">更新（按简称覆盖）</button>
+    <button id="clearBtn">清空表单</button>
+  </div>
+
+  <h2 style="margin-top:24px;">当前数据</h2>
+  <div style="font-size:13px;color:#666">提示：点击“编辑”会把该行填回上面的表单；“删除”会从表格移除该行。</div>
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>简称</th><th>全称</th><th>时间</th><th>地点</th><th>链接</th><th>标签</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+  // === 需要你替换的三个值 ===
+  const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1210v7iHdMSMLCApPlbhQ9yueYZWNkG1k2LXZdcRTtV4/export?format=csv&gid=0";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw2NrGTXx_QP_6lC37U_AG87rxUbFW83H76MQEVx_13zyaONOY0hjNrqqly1H4Yv40w/exec";
+  const SHARED_SECRET   = ""; // 若 Apps Script 中设置了密钥，这里也填一样的；否则留空
+
+  // CSV 转数组
+  function parseCSV(text){
+    const rows = [];
+    let cur = [], val = '', inQuotes = false;
+    for (let i=0;i<text.length;i++){
+      const c = text[i], n = text[i+1];
+      if (inQuotes){
+        if (c === '"' && n === '"'){ val+='"'; i++; }
+        else if (c === '"'){ inQuotes=false; }
+        else { val += c; }
+      } else {
+        if (c === '"'){ inQuotes=true; }
+        else if (c === ','){ cur.push(val); val=''; }
+        else if (c === '\n'){ cur.push(val); rows.push(cur); cur=[]; val=''; }
+        else { val += c; }
+      }
+    }
+    if (val || cur.length) { cur.push(val); rows.push(cur); }
+    return rows;
+  }
+
+  function rowToObj(headers,row){
+    const o={}; headers.forEach((h,i)=>o[h]=row[i]||''); 
+    if (o.tags) o.tags = o.tags.replace(/\s+/g,'').replace(/\|/g,',');
+    return o;
+  }
+
+  async function loadData(){
+    const res = await fetch(SHEET_CSV_URL);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    const headers = rows.shift().map(h=>h.trim());
+    const data = rows.filter(r => r.length && r.join('').trim()!=='').map(r=>rowToObj(headers,r));
+    renderTable(data);
+    window._data = data;
+  }
+
+  function renderTable(data){
+    const q = (document.getElementById('q').value||'').toLowerCase();
+    const tbody = document.querySelector('#tbl tbody');
+    tbody.innerHTML = '';
+    const list = data.filter(d=>{
+      const hay = [d.short_name,d.full_name,d.location,d.tags].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    for (const d of list){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.short_name||''}</td>
+        <td>${d.full_name||''}</td>
+        <td>${d.time||''}</td>
+        <td>${d.location||''}</td>
+        <td>${d.url?`<a href="${d.url}" target="_blank">链接</a>`:''}</td>
+        <td>${d.tags||''}</td>
+        <td class="actions">
+          <button data-sn="${d.short_name}" class="edit">编辑</button>
+          <button data-sn="${d.short_name}" class="del">删除</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.querySelectorAll('.edit').forEach(btn=>{
+      btn.onclick = ()=>{
+        const d = window._data.find(x=>x.short_name===btn.dataset.sn);
+        if (!d) return;
+        for (const k of ['short_name','full_name','format','audience','time','requirement','location','organizer','url','tags']){
+          document.getElementById(k).value = d[k] || '';
+        }
+      };
+    });
+    tbody.querySelectorAll('.del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        if (!confirm(`确定删除 ${btn.dataset.sn} ?`)) return;
+        await callAPI('delete', { short_name: btn.dataset.sn });
+        await loadData();
+      };
+    });
+  }
+
+  function collectForm(){
+    const g = id => document.getElementById(id).value.trim();
+    const tags = g('tags').replace(/\s+/g,'').replace(/[|]/g,',').split(',').filter(Boolean);
+    return {
+      short_name: g('short_name'),
+      full_name: g('full_name'),
+      format: g('format'),
+      audience: g('audience'),
+      time: g('time'),
+      requirement: g('requirement'),
+      location: g('location'),
+      organizer: g('organizer'),
+      url: g('url'),
+      tags: tags.join('|') // 写入表格时用 | 存
+    };
+  }
+
+  async function callAPI(action, payload){
+    const body = action==='delete'
+      ? { action, key: payload.short_name, secret: SHARED_SECRET }
+      : { action, record: payload, key: payload.short_name, secret: SHARED_SECRET };
+
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok){
+      const t = await res.text();
+      alert('保存失败：' + t);
+      throw new Error(t);
+    }
+    alert(action==='delete'?'已删除':'已保存');
+  }
+
+  document.getElementById('addBtn').onclick = async ()=>{
+    const rec = collectForm();
+    if (!rec.short_name) return alert('请填写“比赛简称（唯一键）”');
+    await callAPI('add', rec);
+    await loadData();
+  };
+
+  document.getElementById('updateBtn').onclick = async ()=>{
+    const rec = collectForm();
+    if (!rec.short_name) return alert('请填写“比赛简称（唯一键）”');
+    await callAPI('update', rec);
+    await loadData();
+  };
+
+  document.getElementById('clearBtn').onclick = ()=>{
+    document.querySelectorAll('input,textarea').forEach(el=>el.value='');
+    document.getElementById('format').value = '英国议会制辩论（BP）';
+  };
+
+  document.getElementById('q').oninput = ()=>{
+    renderTable(window._data||[]);
+  };
+
+  loadData();
+</script>
+</body>
+</html>
