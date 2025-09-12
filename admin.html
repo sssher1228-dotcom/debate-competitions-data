@@ -142,7 +142,7 @@
   <script>
     /* ====== 需替换的两个变量 ====== */
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1210v7iHdMSMLCApPlbhQ9yueYZWNkG1k2LXZdcRTtV4/export?format=csv&gid=0";
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqpawP2j_YLPl6Hb9gjysD6FRlBx4L0sQNFELcuDWiPjYTp1fZlIJFxlCsfPFpcCAz/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4hsNS81BYcfENUXgpSlM-sw1E0GMDfEzsvBSOwPV6wdImoddwIbiv_SIKCnZabLXL/exec";
     const SHARED_SECRET = "";
 
     /* ====== 内部状态 ====== */
@@ -225,30 +225,20 @@
       }
     }
 
-    // 写入：调用 Apps Script API（简单请求，避免预检）
-async function callAPI(action, recordOrKey){
+    /* ====== 写入：调用 Apps Script API（no-cors 方案） ====== */
+async function callAPI(action, recordOrKey) {
   const payload = (action === 'delete')
     ? { action, key: recordOrKey, secret: SHARED_SECRET }
     : { action, record: recordOrKey, key: recordOrKey.short_name, secret: SHARED_SECRET };
 
-  const res = await fetch(APPS_SCRIPT_URL, {
+  // 关键：no-cors + text/plain，且不读取响应、不检查 res.ok
+  await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 简单请求
+    mode: 'no-cors',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload)
   });
-
-  // 取文本再尽力 JSON.parse
-  const text = await res.text();
-  let data = null;
-  try { data = JSON.parse(text); } catch (_) {}
-
-  // 既要 HTTP OK，也要 {ok:true}
-  if (!res.ok || !data || data.ok !== true) {
-    const msg = (data && data.error) ? data.error : (text || `HTTP ${res.status}`);
-    throw new Error(msg);
-  }
-  return true;
-}
 
   // 这里不能用 res.ok，因为 no-cors 的响应是 opaque
   return true;
