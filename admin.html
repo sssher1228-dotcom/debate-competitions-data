@@ -142,7 +142,7 @@
   <script>
     /* ====== 需替换的两个变量 ====== */
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1210v7iHdMSMLCApPlbhQ9yueYZWNkG1k2LXZdcRTtV4/export?format=csv&gid=0";
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4hsNS81BYcfENUXgpSlM-sw1E0GMDfEzsvBSOwPV6wdImoddwIbiv_SIKCnZabLXL/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmwsjrBvEL5u8bpTkdtEr1YrqeWrLiKn7F5vqBhjzjibW_6JKd2zhUS6b8jkxI8qBE/exec";
     const SHARED_SECRET = "";
 
     /* ====== 内部状态 ====== */
@@ -225,23 +225,32 @@
       }
     }
 
-    /* ====== 写入：调用 Apps Script API（no-cors 方案） ====== */
-async function callAPI(action, recordOrKey) {
+    /* ====== 写入：调用 Apps Script API（简单请求，避免预检） ====== */
+async function callAPI(action, recordOrKey){
   const payload = (action === 'delete')
     ? { action, key: recordOrKey, secret: SHARED_SECRET }
     : { action, record: recordOrKey, key: recordOrKey.short_name, secret: SHARED_SECRET };
 
-  // 关键：no-cors + text/plain，且不读取响应、不检查 res.ok
-  await fetch(APPS_SCRIPT_URL, {
+  const res = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    cache: 'no-store',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 保持“简单请求”
     body: JSON.stringify(payload)
   });
 
-  // 这里不能用 res.ok，因为 no-cors 的响应是 opaque
-  return true;
+  // 解析返回体（GAS 我们返回的是 JSON）
+  let data = null;
+  try { data = await res.json(); } catch (_) {
+    const txt = await res.text().catch(()=> '');
+    throw new Error(`HTTP ${res.status}: ${txt || 'No JSON returned'}`);
+  }
+
+  // 在控制台打印一下，便于检查
+  console.log('GAS response:', data);
+
+  if (!res.ok || !data || data.ok !== true) {
+    throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
+  }
+  return data; // 返回 {ok:true, action:'add'|...}
 }
 
     /* ====== 渲染卡片 ====== */
